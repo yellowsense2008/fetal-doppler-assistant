@@ -1,0 +1,10 @@
+{
+  "patient_id": "anon-002",
+  "weeks_by_lmp": "32w0d",
+  "weeks_by_scan": "30w0d",
+  "efw_percentile": null,
+  "amniotic_fluid": "low",
+  "vessels": [
+    "<one vessel_record per vessel: umbilical_artery, mca, uterine_left, uterine_right, ductus_venosus>"
+  ]
+}
