@@ -277,27 +277,50 @@ def _canonical_vessel(label: str | None) -> str | None:
 
 def _merge_engines(paddle_values: dict, llm_values: dict) -> dict[str, dict]:
     """Combine PaddleOCR's and the vision model's raw reads into one
-    field->value+provenance map. With no llm_values, this is PaddleOCR alone."""
+    field->value+provenance map. Engines only "agree" on an exact match --
+    a close-but-different reading is a real disagreement, not agreement,
+    since silently accepting a 5% gap could mean quietly keeping the
+    weaker engine's number. When they do agree, PaddleOCR's value is kept
+    (it's the stronger engine on this task). A vision-model-only value is
+    left "llm_only" here -- _gate_llm_only_fields() below decides whether
+    it's accepted, once the formula check for the whole record is known."""
     merged: dict[str, dict] = {}
     for field in FIELDS:
         p = paddle_values.get(field)
         g = llm_values.get(field)
         if p is not None and g is not None:
-            agree = p == g or (abs(p - g) <= max(FORMULA_TOLERANCE * abs(p), 0.02))
+            agree = p == g
             merged[field] = {
-                "value": g if agree else None,
+                "value": p if agree else None,
                 "status": "read" if agree else "disagreement",
                 "source": "paddleocr+llm" if agree else "conflict",
                 "paddleocr_value": p,
                 "llm_value": g,
             }
         elif g is not None:
-            merged[field] = {"value": g, "status": "read", "source": "llm_only", "paddleocr_value": None, "llm_value": g}
+            merged[field] = {"value": g, "status": "llm_only", "source": "llm_only", "paddleocr_value": None, "llm_value": g}
         elif p is not None:
             merged[field] = {"value": p, "status": "read", "source": "paddleocr_only", "paddleocr_value": p, "llm_value": None}
         else:
             merged[field] = {"value": None, "status": "unreadable", "source": None, "paddleocr_value": None, "llm_value": None}
     return merged
+
+
+def _gate_llm_only_fields(merged: dict[str, dict], formula_check: str) -> None:
+    """A value only the vision model saw has no second opinion to confirm
+    it. It's accepted ("read") only if the panel's own formula check passes
+    for this record -- that's the corroboration. If the formula check
+    fails, or there isn't enough data to run it, the value is kept but
+    downgraded to "uncertain" rather than trusted."""
+    accepted = formula_check == "pass"
+    for entry in merged.values():
+        if entry["source"] == "llm_only":
+            entry["status"] = "read" if accepted else "uncertain"
+            entry["note"] = (
+                "Only the vision model read this value; accepted because the panel's formula check passed."
+                if accepted else
+                "Only the vision model read this value, and the panel's formula check did not pass (or couldn't be run) to corroborate it."
+            )
 
 
 def _resolve_disagreements(merged: dict[str, dict]) -> list[str]:
@@ -485,6 +508,7 @@ def _read_scan_detailed(image_path: str | Path, ocr_engine=None, llm_client=None
     resolved_fields = _resolve_disagreements(merged)
     derived_fields = _recover_by_formula(merged)
     formula = _formula_check(merged)
+    _gate_llm_only_fields(merged, formula["formula_check"])
 
     vessel_label = llm.get("vessel_label_seen") or paddle.get("vessel_label_seen")
     vessel_class = _classify_vessel(vessel_label)
@@ -496,7 +520,9 @@ def _read_scan_detailed(image_path: str | Path, ocr_engine=None, llm_client=None
     status = "unverified"
     if ground_truth:
         gt_matches = all(
-            merged[f]["value"] is not None and abs(merged[f]["value"] - ground_truth[f]) <= 0.02
+            merged[f]["value"] is not None
+            and merged[f]["status"] != "uncertain"
+            and abs(merged[f]["value"] - ground_truth[f]) <= 0.02
             for f in ground_truth
         )
         if gt_matches and formula["formula_check"] == "pass":
@@ -533,14 +559,18 @@ def _read_scan_detailed(image_path: str | Path, ocr_engine=None, llm_client=None
 
 
 def _value_source_label(status: str) -> str | None:
-    """Collapse the detailed internal status into the two labels the team
-    schema actually asks for. A disagreement or unreadable field has no
-    value to claim a source for, so it's left out of value_source rather
-    than guessing a label for it."""
+    """Collapse the detailed internal status into the labels the team
+    schema uses. A disagreement or unreadable field has no value to claim
+    a source for, so it's left out of value_source rather than guessing a
+    label for it. "uncertain" is a vision-model-only value that the
+    formula check couldn't corroborate -- kept, but flagged, not trusted
+    as a plain "read"."""
     if status == "derived_from_formula":
         return "derived_from_formula"
     if status == "read" or status.startswith("resolved_by_formula"):
         return "read"
+    if status == "uncertain":
+        return "uncertain"
     return None
 
 
