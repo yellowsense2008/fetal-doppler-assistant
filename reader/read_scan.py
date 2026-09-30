@@ -43,7 +43,7 @@ _LLM_SCHEMA = {
         "ri": {"type": ["number", "null"]},
         "pi": {"type": ["number", "null"]},
         "heart_rate_bpm": {"type": ["number", "null"]},
-        "uncertain_fields": {"type": "array", "items": {"type": "string"}},
+        "uncertain_fields": {"type": "array", "items": {"type": "string", "maxLength": 20}},
         "confidence": {"type": "number"},
     },
     "required": [
@@ -65,10 +65,11 @@ TAmax, MD, S/D, RI, PI and HR as numbers. If gestational age is printed \
 "31w6d" or "31w" format shown on screen -- not a plain number.
 
 If part of the panel is cropped off by the photo edge or is physically \
-unreadable (blur, glare, obstruction), set that field to null and list it \
-in uncertain_fields. Do not calculate a missing value from the others and \
-do not invent a value -- report only what your eyes can actually see \
-printed on the screen."""
+unreadable (blur, glare, obstruction), set that field to null and list \
+just its short field name in uncertain_fields (e.g. "ps", "heart_rate") -- \
+no explanation, no sentences, nothing else in that list. Do not calculate \
+a missing value from the others and do not invent a value -- report only \
+what your eyes can actually see printed on the screen."""
 
 # Vessels whose native heart rate is fetal (~110-180bpm) rather than
 # maternal (~55-100bpm). Matched against whatever label text was actually
@@ -131,9 +132,11 @@ def _run_paddleocr(ocr_engine, image_path: Path) -> dict[str, Any]:
     result = ocr_engine.predict(str(image_path))[0].json["res"]
     texts = result.get("rec_texts", [])
     scores = result.get("rec_scores", [])
+    boxes = result.get("rec_boxes", [])
     rows = []
     field_values: dict[str, float] = {}
     vessel_votes: dict[str, int] = {}
+    relevant_boxes: list[tuple[int, int, int, int]] = []
 
     def assign(field, value, prefix):
         if field not in field_values:
@@ -143,7 +146,8 @@ def _run_paddleocr(ocr_engine, image_path: Path) -> dict[str, Any]:
 
     pending_field = None
     pending_prefix = None
-    for text, score in zip(texts, scores):
+    pending_box = None
+    for text, score, box in zip(texts, scores, boxes if len(boxes) == len(texts) else [None] * len(texts)):
         clean = _clean(text)
         if not clean:
             continue
@@ -161,11 +165,14 @@ def _run_paddleocr(ocr_engine, image_path: Path) -> dict[str, Any]:
                 candidates = [v for v in nums if 40 <= v <= 220]
                 value = candidates[-1] if candidates else value
             assign(field, value, prefix)
+            if box is not None:
+                relevant_boxes.append(tuple(box))
             pending_field = None
         elif field and not nums:
             # A bare label box, e.g. "Umb-PS" -- the value is likely the next box.
             pending_field = field
             pending_prefix = prefix
+            pending_box = box
         elif nums and pending_field:
             # A bare value box right after a bare label box.
             value = nums[-1]
@@ -173,27 +180,64 @@ def _run_paddleocr(ocr_engine, image_path: Path) -> dict[str, Any]:
                 candidates = [v for v in nums if 40 <= v <= 220]
                 value = candidates[-1] if candidates else value
             assign(pending_field, value, pending_prefix)
+            if pending_box is not None:
+                relevant_boxes.append(tuple(pending_box))
+            if box is not None:
+                relevant_boxes.append(tuple(box))
             pending_field = None
         else:
             pending_field = None
 
     vessel_label = max(vessel_votes, key=vessel_votes.get) if vessel_votes else None
-    return {"engine": "PaddleOCR", "raw_text": rows, "field_values": field_values, "vessel_label_seen": vessel_label}
+    return {
+        "engine": "PaddleOCR", "raw_text": rows, "field_values": field_values,
+        "vessel_label_seen": vessel_label, "relevant_boxes": relevant_boxes,
+    }
 
 
 _LLM_MAX_DIMENSION = 1024  # uniform downscale cap, applied to every image alike
+_CROP_PADDING_FRACTION = 0.25  # margin around the found boxes, as a fraction of their span
+_CROP_MIN_PADDING = 40  # ...and never less than this many pixels either
 
 
-def _encode_for_llm(image_path: Path) -> str:
-    """Base64-encode the image, downscaled to a fixed max dimension if
-    larger. This is a uniform speed/quality tradeoff applied to every image
-    the same way -- not a per-image crop or adjustment."""
+def _compute_crop_box(relevant_boxes: list[tuple[int, int, int, int]], image_size: tuple[int, int]) -> tuple[int, int, int, int] | None:
+    """Union the boxes PaddleOCR actually found for this image into one
+    region, with padding so nearby fields it missed are still likely
+    included. Returns None (crop nothing, send the full frame) when
+    PaddleOCR found no relevant boxes at all -- there's no position to go
+    on, so there's nothing to compute a "found" crop from."""
+    if not relevant_boxes:
+        return None
+    xs1 = [b[0] for b in relevant_boxes]
+    ys1 = [b[1] for b in relevant_boxes]
+    xs2 = [b[2] for b in relevant_boxes]
+    ys2 = [b[3] for b in relevant_boxes]
+    left, top, right, bottom = min(xs1), min(ys1), max(xs2), max(ys2)
+    pad_x = max(_CROP_MIN_PADDING, int((right - left) * _CROP_PADDING_FRACTION))
+    pad_y = max(_CROP_MIN_PADDING, int((bottom - top) * _CROP_PADDING_FRACTION))
+    img_w, img_h = image_size
+    left = max(0, left - pad_x)
+    top = max(0, top - pad_y)
+    right = min(img_w, right + pad_x)
+    bottom = min(img_h, bottom + pad_y)
+    return (left, top, right, bottom)
+
+
+def _encode_for_llm(image_path: Path, crop_box: tuple[int, int, int, int] | None = None) -> str:
+    """Base64-encode the image for the vision model. If crop_box is given
+    (computed from where PaddleOCR actually found text on this image, not
+    a fixed pixel region), crop to just that measurement-box area first --
+    a much smaller image means far fewer vision tokens and a much faster
+    call. Downscaling to a fixed max dimension afterward is still a
+    uniform step applied the same way regardless of crop."""
     import base64
     import io
     from PIL import Image
 
     img = Image.open(image_path)
     img = img.convert("RGB")
+    if crop_box is not None:
+        img = img.crop(crop_box)
     if max(img.size) > _LLM_MAX_DIMENSION:
         scale = _LLM_MAX_DIMENSION / max(img.size)
         new_size = (round(img.size[0] * scale), round(img.size[1] * scale))
@@ -203,20 +247,21 @@ def _encode_for_llm(image_path: Path) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
-def _run_llm(client, image_path: Path, timeout: int = 600) -> dict[str, Any]:
+def _run_llm(client, image_path: Path, timeout: int = 600, crop_box: tuple[int, int, int, int] | None = None, retries: int = 3) -> dict[str, Any]:
     """client is unused (kept for call-site symmetry) -- Ollama is a local
     HTTP server, not a client object. Requires `ollama serve` running."""
     import urllib.request
 
-    b64 = _encode_for_llm(image_path)
+    b64 = _encode_for_llm(image_path, crop_box=crop_box)
     payload = json.dumps({
         "model": LLM_MODEL,
         "messages": [{"role": "user", "content": _LLM_PROMPT, "images": [b64]}],
         "format": _LLM_SCHEMA,
-        # num_predict caps a runaway generation (small models can loop
-        # repeating themselves at temperature 0); this schema's answer
-        # never legitimately needs anywhere near this many tokens.
-        "options": {"temperature": 0, "num_predict": 1200},
+        # num_predict caps a runaway generation (a small model can
+        # occasionally loop/repeat itself on a hard image, even at
+        # temperature 0); this schema's answer never legitimately needs
+        # anywhere near this many tokens.
+        "options": {"temperature": 0, "num_predict": 2000},
         "stream": False,
     }).encode("utf-8")
 
@@ -224,9 +269,21 @@ def _run_llm(client, image_path: Path, timeout: int = 600) -> dict[str, Any]:
         f"{OLLAMA_HOST}/api/chat", data=payload,
         headers={"Content-Type": "application/json"}, method="POST",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        body = json.loads(resp.read().decode("utf-8"))
-    parsed = json.loads(body["message"]["content"])
+    parsed = None
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            parsed = json.loads(body["message"]["content"])
+            break
+        except json.JSONDecodeError as exc:
+            # A hard image occasionally makes this small model run long and
+            # get cut off mid-answer (rare, not deterministic despite
+            # temperature 0) -- a retry usually succeeds cleanly.
+            last_exc = exc
+    if parsed is None:
+        raise last_exc
 
     field_values = {f: parsed.get(f) for f in FIELDS if isinstance(parsed.get(f), (int, float))}
     return {
@@ -479,10 +536,15 @@ def _read_scan_detailed(image_path: str | Path, ocr_engine=None, llm_client=None
 
     ocr_engine can be passed in to reuse a warm PaddleOCR instance across
     many images (see main() below); otherwise a fresh one is created for
-    this single call. with_llm=True also runs the local Ollama vision model
-    (requires `ollama serve` running) and reports it alongside PaddleOCR;
-    the default is PaddleOCR alone. llm_client is accepted for call-site
-    symmetry but unused (Ollama is a local HTTP server, not a client object).
+    this single call. llm_client is accepted for call-site symmetry but
+    unused (Ollama is a local HTTP server, not a client object).
+
+    PaddleOCR always runs first. The (much slower) vision model is only
+    called when with_llm=True AND PaddleOCR's own reading needs help: a
+    field is missing, the formula check fails, or the heart rate is out of
+    range or mislabeled. When it is called, it's shown only the region
+    PaddleOCR actually found text in (padded), not the full frame -- far
+    fewer vision tokens, far faster.
     """
     image_path = Path(image_path)
     owns_ocr = ocr_engine is None
@@ -499,18 +561,42 @@ def _read_scan_detailed(image_path: str | Path, ocr_engine=None, llm_client=None
         )
 
     paddle = _run_paddleocr(ocr_engine, image_path)
-    if with_llm:
-        llm = _run_llm(llm_client, image_path)
-    else:
-        llm = {"vessel_label_seen": None, "weeks_on_screen": None, "field_values": {}, "uncertain_fields": [], "confidence": None}
 
-    merged = _merge_engines(paddle["field_values"], llm["field_values"])
-    resolved_fields = _resolve_disagreements(merged)
+    merged = _merge_engines(paddle["field_values"], {})
+    resolved_fields = _resolve_disagreements(merged)  # no-op with no LLM values yet; harmless
     derived_fields = _recover_by_formula(merged)
     formula = _formula_check(merged)
-    _gate_llm_only_fields(merged, formula["formula_check"])
 
-    vessel_label = llm.get("vessel_label_seen") or paddle.get("vessel_label_seen")
+    paddle_vessel_label = paddle.get("vessel_label_seen")
+    paddle_vessel_class = _classify_vessel(paddle_vessel_label)
+    hr = merged["heart_rate_bpm"]["value"]
+    hr_range_check, hr_check = _hr_checks(hr, paddle_vessel_class)
+
+    all_fields_present = all(merged[f]["value"] is not None for f in FIELDS)
+    paddle_sufficient = (
+        all_fields_present
+        and formula["formula_check"] == "pass"
+        and hr_range_check != "misread"
+        and hr_check != "fail"
+    )
+
+    llm = {"vessel_label_seen": None, "weeks_on_screen": None, "field_values": {}, "uncertain_fields": [], "confidence": None}
+    vision_model_used = False
+
+    if with_llm and not paddle_sufficient:
+        vision_model_used = True
+        from PIL import Image
+        image_size = Image.open(image_path).size
+        crop_box = _compute_crop_box(paddle.get("relevant_boxes", []), image_size)
+        llm = _run_llm(llm_client, image_path, crop_box=crop_box)
+
+        merged = _merge_engines(paddle["field_values"], llm["field_values"])
+        resolved_fields = _resolve_disagreements(merged)
+        derived_fields = _recover_by_formula(merged)
+        formula = _formula_check(merged)
+        _gate_llm_only_fields(merged, formula["formula_check"])
+
+    vessel_label = (llm.get("vessel_label_seen") if vision_model_used else None) or paddle_vessel_label
     vessel_class = _classify_vessel(vessel_label)
     vessel = _canonical_vessel(vessel_label)
 
@@ -551,6 +637,7 @@ def _read_scan_detailed(image_path: str | Path, ocr_engine=None, llm_client=None
         "llm_uncertain_fields": llm.get("uncertain_fields", []),
         "llm_confidence": llm.get("confidence"),
         "llm_ran": with_llm,
+        "vision_model_used": vision_model_used,
         "engines": {
             "paddleocr_only": paddle["field_values"],
             "llm_only": llm["field_values"],
