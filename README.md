@@ -48,7 +48,7 @@ Optional local vision model: install Ollama, run `ollama pull qwen2.5vl:3b` and 
 
 ## Team
 
-Prakhar Goyal (sponsor) · Dr Jini Gupta, MS (Obs & Gyn), Jeevisha Clinic, Udaipur (clinical lead) · Talha Nagina (project lead, backend) · Varshini S N (reader) · Sharanya A (guideline engine)
+Prakhar Goyal (Founder & CEO, YellowSense Technologies) · Dr Jini Gupta, MS (Obs & Gyn), Jeevisha Clinic, Udaipur (clinical lead) · Talha Nagina (project lead, backend) · Varshini S N (reader) · Sharanya A (guideline engine)
 
 ## Ownership
 
