@@ -1,0 +1,11 @@
+{
+  "scan_id": "anon-001",
+  "weeks_on_screen": "33w2d",
+  "vessel": "umbilical_artery",
+  "ps": 50.03, "ed": 14.80, "tamax": 30.05,
+  "pi": 1.17, "ri": 0.70, "sd": 3.38,
+  "heart_rate": 145,
+  "flow_between_beats": "present",
+  "value_source": {"pi": "read", "ps": "read"},
+  "ocr_check": "passed"
+}
