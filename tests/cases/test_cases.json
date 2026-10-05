@@ -11,7 +11,7 @@
     "mca": 3.01,
     "utl": 0.49,
     "utr": 0.5,
-    "expect": "Normal. CPR 2.57, mean uterine PI 0.50. No growth restriction.",
+    "expect": "Not SGA (EFW 22nd centile) -> outside SGA pathway, routine care. Must not state anything about MCA flow direction (form has no MCA-flow input).",
     "note": "Doctor: normal. Scan age approx (EFW 31w3d, AC 32w1d, BPD 33w3d) - confirm. FL <1st percentile on screen; MCA shows reversed flow between beats (ED -2.09) - ask doctor."
   },
   {
@@ -26,7 +26,7 @@
     "mca": 1.72,
     "utl": 1.85,
     "utr": 0.6,
-    "expect": "Age-gap flag (3 weeks). High cord PI. High mean uterine PI (1.23). CPR 1.14 low/borderline (chart-dependent). Low fluid. Growth-restriction stage: cannot confirm, need EFW - but Doppler findings must still be shown.",
+    "expect": "Dating flag (3 weeks). UA PI high, flow present. SGA not confirmed (no EFW/AC) -> ask for it. If SGA is confirmed: branch B -> growth weekly, UA Doppler twice weekly, RECOMMEND delivery by 37 weeks (she is 36w: due within a week); steroids only if delivery is by caesarean. Uterine PI reported only.",
     "note": "Doctor: IUGR, low fluid, feto-placental + utero-placental insufficiency (left and mean PI)."
   },
   {
@@ -41,7 +41,7 @@
     "mca": 1.15,
     "utl": 1.06,
     "utr": 1.26,
-    "expect": "Age-gap flag (2 weeks). High cord PI. High mean uterine PI (1.16). CPR 0.71 - clearly low = brain sparing. Low fluid. Stage: need EFW, Doppler findings still shown.",
+    "expect": "Dating flag (2 weeks). UA PI high, flow present; CPR low (brain sparing) shown but not used for timing (preterm). SGA not confirmed -> ask for EFW/AC. If SGA is confirmed: branch B -> growth weekly, UA twice weekly, RECOMMEND delivery by 37 weeks; steroids (24+0-35+6) if delivery is being considered.",
     "note": "Doctor: low fluid, feto-placental + utero-placental insufficiency, brain sparing. Screen shows 31w6d, note says 32w - confirm; it decides early (<32w) vs late FGR rules."
   },
   {
@@ -56,7 +56,7 @@
     "mca": 1.8,
     "utl": 0.7,
     "utr": 0.7,
-    "expect": "Cannot assess cord / CPR: need umbilical artery PI. Must NOT say Normal."
+    "expect": "Cannot choose a branch: need umbilical artery PI. Must NOT say Normal."
   },
   {
     "id": "S2-absent-flow",
@@ -70,7 +70,7 @@
     "mca": 1.1,
     "utl": 1.3,
     "utr": 1.2,
-    "expect": "Absent flow in cord -> Barcelona Stage II. Delivery timing around 34 weeks; close monitoring (every few days). Urgent-looking output."
+    "expect": "SGA (severe), branch C (AREDV) at 32w: REFER to fetal medicine; daily UA, DV Doppler (or cCTG); recommend delivery by 32 weeks after steroids -> due now; caesarean. Needs DV value."
   },
   {
     "id": "S3-reversed-flow",
@@ -84,7 +84,7 @@
     "mca": 1.0,
     "utl": 1.4,
     "utr": 1.3,
-    "expect": "Reversed flow in cord -> Barcelona Stage III. Delivery around 30 weeks / now (already past 30w); very close monitoring. Most urgent output."
+    "expect": "SGA (severe), branch C (AREDV) at 31w: REFER to fetal medicine; daily UA, DV Doppler (or cCTG); deliver before 32w if DV abnormal or STV < 3 ms, otherwise by 32w; consider now (30-32w); steroids; caesarean. Needs DV value."
   },
   {
     "id": "S4-term-40w",
@@ -98,7 +98,7 @@
     "mca": 1.5,
     "utl": 0.6,
     "utr": 0.6,
-    "expect": "Normal Doppler at term. Must discuss delivery timing - must NOT say 'rescan in 2-3 weeks'."
+    "expect": "Not SGA -> outside SGA pathway; routine care. Must NOT say 'rescan in 2-3 weeks'."
   },
   {
     "id": "S5-SGA",
@@ -112,7 +112,7 @@
     "mca": 1.7,
     "utl": 0.7,
     "utr": 0.7,
-    "expect": "Small for gestational age (SGA), not FGR: EFW 3rd-10th with normal Doppler (FOGSI)."
+    "expect": "SGA, branch A (UA normal) at 36w: growth + UA Doppler every 2 weeks, MCA Doppler (after 32w) -> MCA centile needed; OFFER delivery by 37 weeks with senior clinician; if MCA PI < 5th -> RECOMMEND by 37 weeks."
   },
   {
     "id": "S6-efw-below-3",
@@ -126,7 +126,7 @@
     "mca": 1.7,
     "utl": 0.7,
     "utr": 0.7,
-    "expect": "FGR by EFW <3rd percentile alone (FOGSI), Barcelona Stage I; delivery around 37 weeks."
+    "expect": "Severe SGA, branch A at 36w: same as S5 (more frequent surveillance may be appropriate); OFFER delivery by 37 weeks."
   },
   {
     "id": "S7-age-gap-only",
@@ -140,7 +140,7 @@
     "mca": 1.85,
     "utl": 0.62,
     "utr": 0.65,
-    "expect": "Age-gap flag (3 weeks) shown clearly; percentiles computed with LMP age; need EFW for stage."
+    "expect": "Dating flag (3 weeks); centiles by LMP age; SGA unknown -> ask for EFW/AC; UA normal."
   },
   {
     "id": "S8-bad-input",
@@ -154,6 +154,6 @@
     "mca": 1.8,
     "utl": 0.7,
     "utr": 0.7,
-    "expect": "Reject: 45 weeks impossible, EFW percentile >100, UA PI 15 out of range. No result produced."
+    "expect": "Reject: 45 weeks impossible, EFW centile >100, UA PI 15 out of range. No result produced."
   }
 ]

@@ -1,0 +1,15 @@
+# Code owners are asked to review pull requests that touch their files.
+# The last matching line wins.
+#
+# TODO: Varshini's commits are not linked to a GitHub account yet.
+# Once she adds snvarshini1206@gmail.com to her GitHub account (or commits
+# from her account's email), replace @TalhaNagina on the reader/ line
+# with her username.
+
+*                   @TalhaNagina
+/engine/            @Sharanyaananth
+/app/               @Sharanyaananth @TalhaNagina
+/docs/guideline_rules_rcog_gtg31.md  @Sharanyaananth
+/reader/            @TalhaNagina
+/schemas/           @TalhaNagina
+/quality/           @TalhaNagina

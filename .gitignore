@@ -14,3 +14,18 @@ __pycache__/
 .venv/
 venv/
 .streamlit/secrets.toml
+# Medical images and other data formats
+*.dcm
+*.dicom
+*.heic
+*.webp
+*.bmp
+*.tif
+*.tiff
+*.webm
+*.mov
+*.zip
+*.xlsx
+*.xls
+*.csv
+!tests/**/*.csv
