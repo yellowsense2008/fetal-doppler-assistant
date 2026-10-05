@@ -31,7 +31,7 @@ Plan and milestones: see the October 2026 project plan (shared document) and the
 
 ```bash
 pip install -r requirements.txt          # app + engine (light)
-pip install -r requirements-reader.txt   # only on machines that read scans (heavy)
+pip install -r requirements-reader.txt   # scan reader (RapidOCR; PaddleOCR is used instead if installed)
 python -m pytest -q                      # must pass before any demo or merge
 streamlit run app/app.py
 ```

@@ -1,5 +1,7 @@
 -r requirements.txt
-# scan reader (heavy): only on the machine that reads scans
-paddleocr
-paddlepaddle
+# Scan reader. RapidOCR runs the same PP-OCR models via ONNX (light, models bundled):
+rapidocr_onnxruntime
 pillow
+# Optional: full PaddleOCR (heavier) - used automatically if installed
+# paddleocr
+# paddlepaddle

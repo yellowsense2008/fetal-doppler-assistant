@@ -8,7 +8,7 @@ Status: **Done** = implemented and tested · **Partial** = implemented, not yet 
 |---|---|---|---|
 | REQ-01 | Extract PI, RI, S/D ratio and fetal heart rate for the umbilical artery, middle cerebral artery and left/right uterine arteries from a photo of the Doppler screen | Partial (one machine model) | Reader accuracy report on the locked test set, per value and machine |
 | REQ-02 | Cross-check extracted values with the Doppler formulas and a plausible heart-rate range | Done | Reader checks in `reader/read_scan.py` |
-| REQ-03 | Pre-fill only values that pass the cross-check; send everything else to manual entry | **Partial**: the reader flags failed checks, but the app in this branch pre-fills every PI it reads. Fixed in the newer app build, which must be merged | App behaviour; reader report counts silent errors |
+| REQ-03 | Pre-fill only values that pass the cross-check; send everything else to manual entry | Done (app pre-fills only values whose formula check passed; others are marked "needs manual entry") | App behaviour; reader report counts silent errors |
 | REQ-04 | Values seen only by the vision model are never used unless they pass the cross-check | Done | Reader merge logic |
 | REQ-05 | Support at least three further machine brands | Planned | Accuracy report per machine |
 
@@ -29,7 +29,7 @@ Status: **Done** = implemented and tested · **Partial** = implemented, not yet 
 | ID | Requirement | Status | How it is checked |
 |---|---|---|---|
 | REQ-20 | The doctor reviews and confirms all values before the guideline is applied | Done | App flow |
-| REQ-21 | The report states it is decision support and carries signature lines for the doctor | Partial: statement present; signature lines in the newer app build | PDF report |
+| REQ-21 | The report states it is decision support and carries signature lines for the doctor | Done | PDF report |
 
 ## Data protection and safety
 
