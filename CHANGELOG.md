@@ -4,6 +4,14 @@ All notable changes to Fetal Doppler Assistant. Newest first.
 
 ## Unreleased
 
+### Fixed
+- The app now pre-fills only values whose formula check passed; every other value is marked "needs manual entry" (REQ-03, RISK-01).
+
+### Added
+- YellowSense-themed app: upload with progress and per-vessel read results, guideline result with severity banner and rule tags, saved anonymised demo cases.
+- Table-based PDF report with logo header, Doppler table with limits, management table with rules, and signature lines (REQ-21).
+- RapidOCR fallback (`reader/ocr_backend.py`): same OCR models via ONNX, used when PaddleOCR is not installed.
+
 ### Added
 - Project records: README, contributing guide, code owners, pull request checklist, proprietary notice.
 - Quality records in `quality/`: requirements, risk register, decision log.

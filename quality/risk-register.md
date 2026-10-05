@@ -4,7 +4,7 @@ What could go wrong for a patient or their data, and what prevents it. Severity:
 
 | ID | Hazard | Cause | Possible harm | Severity | Likelihood | Controls | Status |
 |---|---|---|---|---|---|---|---|
-| RISK-01 | A wrong value is shown as confirmed | OCR misread, wrong screen layout | Wrong management advice | High | Low | Formula cross-check; only checked values pre-filled; doctor confirms every value (REQ-02, 03, 20) | **Partly controlled**: app in this branch pre-fills unchecked values (REQ-03); fix to be merged, then verify on locked test set |
+| RISK-01 | A wrong value is shown as confirmed | OCR misread, wrong screen layout | Wrong management advice | High | Low | Formula cross-check; only checked values pre-filled; doctor confirms every value (REQ-02, 03, 20) | Controlled; to be verified on the locked test set |
 | RISK-02 | Vision model invents a value | Model error on a hard image | Wrong management advice | High | Low | Vision-only values used only if they pass the cross-check (REQ-04) | Controlled |
 | RISK-03 | Reference limits are wrong | Placeholder chart in use | Abnormal flow missed or normal flow flagged | High | Medium | Replace with a published chart (REQ-14); placeholder labelled in code and README | **Open** |
 | RISK-04 | Guideline rule implemented wrongly | Coding error, misread flowchart | Wrong surveillance or delivery advice | High | Medium | Test cases; rules table from Appendix III; clinical lead sign-off of every rule; rule versioning (REQ-10, 15, 16) | Partly controlled |
